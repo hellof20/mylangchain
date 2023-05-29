@@ -26,5 +26,5 @@ while x<len(docs):
     rds = Redis.from_documents(docs[x:y], embeddings, redis_url="redis://localhost:6379",  index_name='pwmlink')
     x += 5
 qa = RetrievalQA.from_chain_type(llm=VertexAI(), chain_type="map_rerank", retriever=rds.as_retriever(), return_source_documents=False)
-result = qa({"query": "do you know the coordinates of Auchindoun?"})
+result = qa({"query": "do you know the coordinates of teleport Auchindoun?"})
 print(result)
