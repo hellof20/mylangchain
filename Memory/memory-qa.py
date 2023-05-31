@@ -15,8 +15,7 @@ llm=VertexAI()
 # 引用redis已经存在index
 embeddings = VertexAIEmbeddings()
 rds = Redis.from_existing_index(embeddings, redis_url="redis://localhost:6379", index_name='pwmlink')
-qa = RetrievalQA.from_chain_type(llm=llm, chain_type="map_rerank", 
-retriever=rds.as_retriever(), return_source_documents=False)
+qa = RetrievalQA.from_chain_type(llm=llm, chain_type="map_rerank", retriever=rds.as_retriever(), return_source_documents=False)
 
 
 template = """You are a chatbot having a conversation with a human.
