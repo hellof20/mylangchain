@@ -1,18 +1,16 @@
 from langchain.embeddings import VertexAIEmbeddings
 from langchain.text_splitter import CharacterTextSplitter,RecursiveCharacterTextSplitter
 from langchain.vectorstores.redis import Redis
-from langchain.document_loaders import TextLoader
-from langchain.llms import VertexAI
-from langchain import LLMChain
-from langchain.chains import RetrievalQA,RetrievalQAWithSourcesChain,ConversationalRetrievalChain
-from langchain.output_parsers import StructuredOutputParser, ResponseSchema
-from langchain.prompts import PromptTemplate
-from langchain.agents import initialize_agent,AgentType,Tool,ZeroShotAgent,AgentExecutor
-from langchain.tools import StructuredTool
-from langchain.memory import ChatMessageHistory,ConversationBufferMemory
-from langchain.prompts import MessagesPlaceholder
+from langchain         import LLMChain
+from langchain.llms    import VertexAI,OpenAI
+from langchain.chains  import RetrievalQA,RetrievalQAWithSourcesChain,ConversationalRetrievalChain
+from langchain.prompts import PromptTemplate,MessagesPlaceholder
+from langchain.agents  import initialize_agent,AgentType,Tool,ZeroShotAgent,AgentExecutor,load_tools
+from langchain.tools   import StructuredTool
+from langchain.memory  import ConversationBufferMemory
+from langchain.utilities import SerpAPIWrapper
 
-import requests,time
+import requests,time,os
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -23,17 +21,18 @@ llm = VertexAI(
     top_p=0.8,
     top_k=40,
     verbose=True)
-
+# llm = OpenAI(temperature=0,max_tokens=2048)   
+search = SerpAPIWrapper()
 embeddings = VertexAIEmbeddings()
 
-#https://python.langchain.com/en/latest/modules/agents/agents/examples/structured_chat.html#adding-in-memory
 ## memory
 chat_history = MessagesPlaceholder(variable_name="chat_history")
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
 # 引用redis已经存在index
-rds = Redis.from_existing_index(embeddings, redis_url="redis://localhost:6379", index_name='pwmlink')
+rds = Redis.from_existing_index(embeddings, redis_url="redis://localhost:6379", index_name='mylink')
 qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=rds.as_retriever(), return_source_documents=False)
+
 
 def soap_request(command):
     body = """<SOAP-ENV:Envelope
@@ -68,13 +67,14 @@ def player_level(player_name:str, level_number:int):
     return 'change level success!'
 
 def parsing_level(string):
-    print(string)
     a, b = string.split(",")
     player_level(a,int(b))
     return 'change level success'
 
 def parsing_teleport(string):
-    print(string)
+    # print("--------------------------------------")
+    # print(string)
+    # print("--------------------------------------")
     a, b = string.split(",")
     teleport(a,b)
     return 'teleport success'
@@ -100,8 +100,13 @@ location_search = Tool(
     return_direct=False
 )
 
-# tools = [location_search, teleport, player_level]
-tools = [location_search, parsing_teleport, parsing_level]
+# https://python.langchain.com/en/latest/modules/agents/agents/examples/conversational_agent.html
+current_search = Tool(
+        name = "Current Search",
+        func=search.run,
+        description="useful for when you need to answer questions about current events or the current state of the world or current date or current weather"
+    )
+tools = [location_search, parsing_teleport, parsing_level, current_search]
 
 # agent = initialize_agent(
 #     tools,
@@ -123,18 +128,12 @@ def chat():
     player_name = request.get_json()["player_name"]
     msg = request.get_json()["msg"]
     response= agent.run(msg)
-    # try:
-    #     response= agent.run(msg)
-    # except Exception as e:
-    #     response = str(e)
-    #     if response.startswith("Could not parse LLM output"):
-    #         response = 'try again'
     return response
 
 while True:
-    msg = input("input: ")
-    result = agent.run(msg)
-    print(result)
+   msg = input("input: ")
+   result = agent.run(msg)
+   print(result)
 
 if __name__ == "__main__":
     app.run(debug=True,host="0.0.0.0")
