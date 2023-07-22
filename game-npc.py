@@ -56,14 +56,14 @@ def teleport(player_name:str, location_name:str):
     """when player asked to or want to teleport, then teleport player to the location."""
     command = "tele name %s %s" %(player_name, location_name.replace(' ',''))
     print(command)
-    # soap_request(command)
+    soap_request(command)
     return ''
 
 def player_level(player_name:str, level_number:int):
     """player level number."""
     command = "character level %s %d" %(player_name, level_number)
     print(command)
-    # soap_request(command)
+    soap_request(command)
     return 'change level success!'
 
 def parsing_level(string):
